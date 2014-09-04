@@ -1,0 +1,72 @@
+---
+title: "Coursera Regression Models Project"
+author: "Mario Segal"
+output: html_document
+---
+
+##Executive Summary
+The purpose of the Analysis is to explore the factors that drive fuel efficiency in motorcars using the Motor Trend data for 1973 and 1974 models available on the R dataset mtcars. In particular if automatic transactions are better or worse in terms of fuel efficiency
+
+For this purpose I conducted some exploratory data analysis and then build several regressions models to quantify the difference i fuel economy between the transmission types and identify other factors that may impact fuel efficiency.
+
+##Initial Data Exploration and Analysis
+```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=10,cache=F}
+library(ggplot2);library(plyr);library(dplyr);library(reshape2)
+
+data(mtcars)
+data <- mtcars
+data$am <- factor(data$am,levels=c(0,1),labels=c("Automatic","Manual"))
+data$car <- row.names(data)
+
+#Do some EDA
+ch1 <- ggplot(data,aes(y=mpg,x=am))+geom_violin(aes(color=am))+geom_boxplot(aes(fill=am),alpha=0.4)+
+  geom_jitter(position = position_jitter(width = .1,height=0),color="blue")+theme_bw()+
+  theme(legend.position="none")+scale_y_continuous("MPG")+scale_x_discrete("Transmission")+
+  ggtitle("MPG by Transmission Type")
+
+data1 <- melt(data,id.var=c("car","am","mpg"))
+ch2 <- ggplot(data1,aes(y=mpg,x=value,color=am))+geom_point()+stat_smooth(se=F,method="lm")+
+  facet_wrap(~variable,scales="free")+theme_bw()+theme(legend.position="bottom")+
+  ggtitle("MPG versus Other Variables by\nTransmission Type")+scale_y_continuous("MPG")+
+  scale_x_continuous("Variable Value")+scale_color_discrete("Transmission\nType")
+
+require(grid)
+vp.layout <- function(x, y) viewport(layout.pos.row=x, layout.pos.col=y)
+arrange_ggplot2 <- function(..., nrow=NULL, ncol=NULL, as.table=FALSE) {
+  dots <- list(...)
+  n <- length(dots)
+	if(is.null(nrow) & is.null(ncol)) { nrow = floor(n/2) ; ncol = ceiling(n/nrow)}
+	if(is.null(nrow)) { nrow = ceiling(n/ncol)}
+	if(is.null(ncol)) { ncol = ceiling(n/nrow)}
+        ## NOTE see n2mfrow in grDevices for possible alternative
+grid.newpage()
+pushViewport(viewport(layout=grid.layout(nrow+1,ncol,heights = unit(c(0.5,5),"null")  ) ))
+	ii.p <- 1
+	for(ii.row in seq(1, nrow)){
+	ii.table.row <- ii.row	
+	if(as.table) {ii.table.row <- nrow - ii.table.row + 1}
+		for(ii.col in seq(1, ncol)){
+			ii.table <- ii.p
+			if(ii.p > n) break
+			print(dots[[ii.table]], vp=vp.layout(ii.table.row+1, ii.col))
+			ii.p <- ii.p + 1
+		}
+	}
+}
+
+arrange_ggplot2(ch1,ch2)
+grid.text("Exploratory Analysis of Motor Car MPG Data", vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2))
+```
+*Figure 1*
+:The Figure above shows that transmission type appears to be related to fuel economy. The left panel shows that  manual transmission cars generally have higher efficiency. The right panel shows that multiple other variables appear to be related to fuel efficiency as well, in particular it appears that some variables such as Rear axle Ratio and Weight (drat and wt) separate manual and automatic cars well, and that the realtionships appear to be well approximated by linear relationships.
+
+###Explanatory Analysis
+As a first step in the explanatory analysis I fitted a liner model (using package caret) to explain MPG as a function only of the transmission type. This model by definition will predict the average for automatic as the intercept coefficient and the difference in the averages as the coefficient for manual cars (which are coded with 1 on the dataset). While this model determines a significant difference among transmission it is not very interesting as it only explains 34% of the variation in MPG.
+
+The second step was to perform a full search across multiple linear models using the caret method "lmStepAIC" with otions forward, backward and stepwise (no option). Both the backward and Stepwise options resulted in the same model explaining 83% of variation in MPG. The model coefficients and results are presented below
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=10,cache=F}
+library(caret)
+model2 <- train(mpg~.,data[-12],method="lmStepAIC",direction="backward",trace=F)
+library(knitr)
+kable(summary(model2)$coefficients)
+```
