@@ -3,14 +3,13 @@ title: "Coursera Regression Models Project"
 author: "Mario Segal"
 output: html_document
 ---
-
 ##Executive Summary
-The purpose of the Analysis is to explore the factors that drive fuel efficiency in motorcars using the Motor Trend data for 1973 and 1974 models available on the R dataset mtcars. In particular if automatic transactions are better or worse in terms of fuel efficiency
+The purpose of the Analysis is to explore the factors that drive fuel efficiency in motorcars using the Motor Trend data for 1973 and 1974 models available on the R dataset mtcars. In particular we wan to understad if automatic transactions are better or worse in terms of fuel efficiency
 
-For this purpose I conducted some exploratory data analysis and then build several regressions models to quantify the difference i fuel economy between the transmission types and identify other factors that may impact fuel efficiency.
+For this purpose I conducted some exploratory data analysis and then built several regressions models to quantify the difference in fuel economy between the transmission types and identify other factors that may impact fuel efficiency.
 
 ##Initial Data Exploration and Analysis
-```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=10,cache=F}
+```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=9,fig.height=4.5,cache=F,fig.retina=2}
 library(ggplot2);library(plyr);library(dplyr);library(reshape2)
 
 data(mtcars)
@@ -58,15 +57,160 @@ arrange_ggplot2(ch1,ch2)
 grid.text("Exploratory Analysis of Motor Car MPG Data", vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2))
 ```
 *Figure 1*
-:The Figure above shows that transmission type appears to be related to fuel economy. The left panel shows that  manual transmission cars generally have higher efficiency. The right panel shows that multiple other variables appear to be related to fuel efficiency as well, in particular it appears that some variables such as Rear axle Ratio and Weight (drat and wt) separate manual and automatic cars well, and that the realtionships appear to be well approximated by linear relationships.
+:The Figure above shows that transmission type appears to be related to fuel economy. The left panel shows that  manual transmission cars generally have higher efficiency. The right panel shows that multiple other variables appear to be related to fuel efficiency as well, in particular it appears that some variables such as rear axle ratio and weight (drat and wt) separate manual and automatic cars well, and that the realtionships appear to be well approximated by linear relationships.
 
 ###Explanatory Analysis
-As a first step in the explanatory analysis I fitted a liner model (using package caret) to explain MPG as a function only of the transmission type. This model by definition will predict the average for automatic as the intercept coefficient and the difference in the averages as the coefficient for manual cars (which are coded with 1 on the dataset). While this model determines a significant difference among transmission it is not very interesting as it only explains 34% of the variation in MPG.
+As a first step in the explanatory analysis I built a liner model to explain MPG as a function only of the transmission type. This model by definition will predict the average for automatic as the intercept coefficient and the difference in the averages as the coefficient for manual cars. While this model determines a significant difference among transmission it is not very instructional as it only explains 34% of the variation in MPG.
 
-The second step was to perform a full search across multiple linear models using the caret method "lmStepAIC" with otions forward, backward and stepwise (no option). Both the backward and Stepwise options resulted in the same model explaining 83% of variation in MPG. The model coefficients and results are presented below
-```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=10,cache=F}
+The second step was to perform a full search across multiple linear models using the caret method "lmStepAIC" with otions forward, backward and stepwise. Both the backward and stepwise options resulted in a model explaining 83% of variation in MPG. The model summary is presented below:
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE,cache=F}
 library(caret)
 model2 <- train(mpg~.,data[-12],method="lmStepAIC",direction="backward",trace=F)
-library(knitr)
-kable(summary(model2)$coefficients)
+fit <- lm(mpg~(wt+qsec+am),data=mtcars)
+library(xtable)
+#kable(summary(model2)$coefficients,digits=2,format="html")
+print(xtable(fit, caption ="Regression Model Coefficients and Significance", digits = 2),type='html',caption.placement = 'top')
+
 ```
+\newline 
+    
+The final model was evaluated with diagnostic plots (see appendix) and found to perform well, In particular the residuals vs. fitted plot does not show a clear pattern in the residuals which would indicate that they are related to the outcome variable. In addition the Normal Q-Q plot shows that the points lie mostly along the expected line indicting proper model fit. Finally the predictor versus residuals plots do not show a patterns ae expected.
+
+To illustrate the model fit, Figure 2 of the actual MPG values versus their predicted values, which shows they are relatively close and that lower observed values tend to be related to lower predictions and higher observed values to higher predictions.
+
+```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=9,fig.height=7.0,cache=F,fig.retina=2}
+fit2 <- summary(model2)
+diags <- data.frame(car=row.names(mtcars),residuals=fit2$residuals,am=mtcars$am,wt=mtcars$wt,qsec=mtcars$qsec,actual=mtcars$mpg,predicted=predict(model2,data))
+diags1 <- melt(diags,id.vars=c("car","residuals","actual")) 
+ggplot(subset(diags1,variable=="predicted"),aes(y=actual,x=value,color=variable))+geom_point()+
+  theme_bw()+theme(legend.position="none")+
+  ggtitle("Predicted vs. Actual Plot")+scale_x_continuous("Predicted MPG")+
+  scale_y_continuous("Actual MPG")+geom_abline(slope=1,intercept=0,color="blue")
+```
+
+*Figure 2*
+:The Figure above shows that the predicted MPG values are close to the actual MPG values and fall along the line defining perfect prediction.
+
+---
+###Conclusion
+The final model shows that there is a relationship between transmission type and fuel efficiency, with manual transmissions delivering 2.94 MPG more than Automatoic ones after controlling for other factors. The final model also shows that weight is negatively related to fuel efficiency, which is a logical given that heavier cars require more energy and fuel. 
+
+The model also shows that the 1/4 mile time is related to fuel efficiency with faster cars having lower MPG (at a rate of 1.23 MPG per second slower all other factors being equal), this is likely an indication that faster cars use more fuel perhaps due to larger or more powerful engines(indeed a model using horsepower as an explanatory variable instead of the 1/4 mile time is almost as good as the selected model).
+
+
+---
+\newline 
+\newline
+\newline
+
+###Appendix
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=8,fig.height=8,cache=F,fig.retina=2}
+#Residuls versus predicotr plots
+diags <- data.frame(car=row.names(mtcars),residuals=fit2$residuals,am=mtcars$am,wt=mtcars$wt,qsec=mtcars$qsec,fitted=predict(model2,data))
+diags1 <- melt(diags,id.vars=c("car","residuals")) 
+ggplot(subset(diags1,variable != "fitted"),aes(y=residuals,x=value,color=variable))+geom_point()+
+  facet_wrap(~variable,scales="free_x")+theme_bw()+theme(legend.position="none")+
+  ggtitle("Residuals versus Predictor Plots for Final Model")+scale_x_continuous("Predictor")+
+  scale_y_continuous("Residuals")
+```
+*Appendix 1*
+:Appendix 1 shows plots of the residuals versus the predictors in the final model.
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=8,fig.height=8,cache=F,fig.retina=2}
+
+#create the model in lm for the plots
+
+
+#from http://librestats.com/2012/06/11/autoplot-graphical-methods-with-ggplot2/
+autoplot.lm <- function(model, ..., which=c(1:3, 5), mfrow=c(1,1)){
+  
+  require(grid)
+  df <- fortify(model)
+  df <- cbind(df, rows=1:nrow(df))
+  
+  # residuals vs fitted
+  g1 <- ggplot(df, aes(.fitted, .resid)) +
+    geom_point()  +
+    geom_smooth(se=FALSE) +
+    geom_hline(linetype=2, size=.2) +
+    scale_x_continuous("Fitted Values") +
+    scale_y_continuous("Residual") +
+    ggtitle("Residuals vs Fitted")+theme_bw()
+  
+  # normal qq
+  a <- quantile(df$.stdresid, c(0.25, 0.75))
+  b <- qnorm(c(0.25, 0.75))
+  slope <- diff(a)/diff(b)
+  int <- a[1] - slope * b[1]
+  g2 <- ggplot(df, aes(sample=.stdresid)) +
+    stat_qq() +
+    geom_abline(slope=slope, intercept=int,color="blue") +
+    scale_x_continuous("Theoretical Quantiles") +
+    scale_y_continuous("Standardized Residuals") +
+    ggtitle("Normal Q-Q")+theme_bw()
+  
+  # scale-location
+  g3 <- ggplot(df, aes(.fitted, sqrt(abs(.stdresid)))) +
+    geom_point() +
+    geom_smooth(se=FALSE) +
+    scale_x_continuous("Fitted Values") +
+    scale_y_continuous("Root of Standardized Residuals") +
+    ggtitle("Scale-Location")+theme_bw()
+  
+  # cook's distance
+  g4 <-  ggplot(df, aes(rows, .cooksd, ymin=0, ymax=.cooksd)) +
+    geom_point() + geom_linerange(color="blue") +
+    scale_x_continuous("Observation Number") +
+    scale_y_continuous("Cook's distance") +
+    ggtitle("Cook's Distance")+theme_bw()
+  
+  # residuals vs leverage
+  g5 <- ggplot(df, aes(.hat, .stdresid)) +
+    geom_point() +
+    geom_smooth(se=FALSE) +
+    geom_hline(linetype=2, size=.2) +
+    scale_x_continuous("Leverage") +
+    scale_y_continuous("Standardized Residuals") +
+    ggtitle("Residuals vs Leverage")+theme_bw()
+  
+  # cooksd vs leverage
+  g6 <- ggplot(df, aes(.hat, .cooksd)) +
+    geom_point() +
+    geom_smooth(se=FALSE) +
+    scale_x_continuous("Leverage") +
+    scale_y_continuous("Cook's distance") +
+    ggtitle("Cook's dist vs Leverage")+theme_bw()
+  
+  plots <- list(g1, g2, g3, g4, g5, g6)
+  
+  # making the plots
+  grid.newpage()
+  
+  if (prod(mfrow)>1) {
+    mypos <- expand.grid(1:mfrow[1], 1:mfrow[2])
+    mypos <- mypos[with(mypos, order(Var1)), ]
+    pushViewport(viewport(layout = grid.layout(mfrow[1], mfrow[2])))
+    formatter <- function(.){}
+  } else {
+    mypos <- data.frame(matrix(1, length(which), 2))
+    pushViewport(viewport(layout = grid.layout(1, 1)))
+    formatter <- function(.) {
+      .dontcare <- readline("Hit <Return> to see next plot: ")
+      grid.newpage()
+    }
+  }
+  
+  j <- 1
+  for (i in which){
+    formatter()
+    print(plots[[i]], vp=viewport(layout.pos.row=mypos[j,][1], layout.pos.col=mypos[j,][2]))
+    j <- j+1
+  }
+}
+
+autoplot.lm(fit, which=1:6, mfrow=c(3,2))
+
+```
+*Appendix 2*
+:Appendix 2 shows traditional diagnostic plots for the final model.
