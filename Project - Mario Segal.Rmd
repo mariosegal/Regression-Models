@@ -79,7 +79,7 @@ The final model was evaluated with diagnostic plots (see appendix) and found to 
 
 To illustrate the model fit, Figure 2 of the actual MPG values versus their predicted values, which shows they are relatively close and that lower observed values tend to be related to lower predictions and higher observed values to higher predictions.
 
-```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=9,fig.height=7.0,cache=F,fig.retina=2}
+```{r,results='hold',echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=9,fig.height=6.,cache=F,fig.retina=2}
 fit2 <- summary(model2)
 diags <- data.frame(car=row.names(mtcars),residuals=fit2$residuals,am=mtcars$am,wt=mtcars$wt,qsec=mtcars$qsec,actual=mtcars$mpg,predicted=predict(model2,data))
 diags1 <- melt(diags,id.vars=c("car","residuals","actual")) 
